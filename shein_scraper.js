@@ -54,8 +54,58 @@ async function main() {
     // Wait for all queries to finish
     await Promise.all(page_promises);
 
+    // Insert a fake item for a minigame
+    if (csv_data.length > 1000) {
+        const item = generate_fake(csv_data);
+
+        // Insert at a random position
+        csv_data.splice(Math.floor(Math.random() * (csv_data.length + 1)), 0, item);
+    }
+
     console.log("Done");
-    download("shein_data.csv", csv_data.join("\n"));
+
+    // Replace . by , because excel in spain uses , as a decimal separator.
+    const result = csv_data.join("\n").replace('.', ',');
+    download("shein_data.csv", result);
+}
+
+/**
+ * It's original price it's equal to the mean of all the original prices
+ * It contains the string "me" in its name
+ * It has a unique discount
+ * @param {Array<string>} csv_data 
+ */
+function generate_fake(csv_data) {
+    var mean = 0;
+    const discounts_set = new Set();
+
+    // Skip the first line of headers
+    for (var data_line of csv_data.slice(1)) {
+        data_line_ = data_line.split(DELIMITTER);
+        let price_discounted = Number.parseFloat(data_line_[2]);
+        let discount = Number.parseInt(data_line_[3]);
+
+        mean += price_discounted / (1.0-discount/100.0);
+
+        discounts_set.add(discount);
+    }
+
+    mean = mean / csv_data.length;
+    
+    const unused_discounts = new Array();
+    for (var i = 0; i <= 100; i++) {
+        if (!discounts_set.has(i)) {
+            unused_discounts.push(i);
+        }
+    }
+
+    const discount = unused_discounts[Math.floor(Math.random() * unused_discounts.length)].toString();
+    const price =(Math.floor(mean - mean * (discount/100.0))).toString() + ".00"
+
+    const name = atob("U0hFSU4gY2xpY2sgbWUgU0hFSU4gOik=");
+    const link = atob("aHR0cHM6Ly93d3cubXVuZG9kZXBvcnRpdm8uY29tL2FsZmFiZXRhL2hlcm8vMjAyMy8wNy9hbGZhYmV0YS4xNjg4Mjg4MTI2LjAzODMuanBnP3dpZHRoPTc2OCZhc3BlY3RfcmF0aW89MTY6OSZmb3JtYXQ9bm93ZWJw");
+
+    return [surround_with_quotes(name), surround_with_quotes(link), price, discount].join(DELIMITTER);
 }
 
 /**
@@ -85,7 +135,13 @@ function setPageParameter(url, i) {
  */
 async function getItemsFromPage(page, list) {
     // Find each item
-    for (var item of page.querySelectorAll("section.product-card")) {
+    const items = page.querySelectorAll("section.product-card");
+    if (items.length == 0) {
+        console.log("Could not find any item in page, check CAPTCHA or ban.");
+        return;
+    }
+
+    for (var item of items) {
         const csv_line = getItemInfoCSV(item);
 
         if (csv_line != undefined) {
