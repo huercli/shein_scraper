@@ -65,12 +65,13 @@ async function main() {
     console.log("Done");
 
     // Replace . by , because excel in spain uses , as a decimal separator.
-    const result = csv_data.join("\n").replace('.', ',');
+    const result = csv_data.join("\n").replaceAll('.', ',');
     download("shein_data.csv", result);
 }
 
 /**
  * It's original price it's equal to the mean of all the original prices
+ * It's discounted price contains no decimals
  * It contains the string "me" in its name
  * It has a unique discount
  * @param {Array<string>} csv_data 
